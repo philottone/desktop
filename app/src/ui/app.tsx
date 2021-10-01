@@ -1,8 +1,9 @@
 import * as React from 'react'
 import * as crypto from 'crypto'
+import * as Path from 'path'
 import { ipcRenderer, remote } from 'electron'
 import { TransitionGroup, CSSTransition } from 'react-transition-group'
-
+import * as notifier from 'node-notifier'
 import {
   IAppState,
   RepositorySectionTab,
@@ -1149,8 +1150,34 @@ export class App extends React.Component<IAppProps, IAppState> {
       const url = getGitHubHtmlUrl(repository)
 
       if (url) {
-        this.props.dispatcher.openInBrowser(url)
+        //this.props.dispatcher.openInBrowser(url)
       }
+
+      const goodNotifier = new notifier.NotificationCenter({
+        customPath: Path.resolve(
+          __dirname,
+          'terminal-notifier.app/Contents/MacOS/terminal-notifier'
+        ),
+      })
+      const NOTIFICATION_TITLE = '@tidy-dev approved your pull request'
+      const NOTIFICATION_BODY = 'LGTM! :shipit:'
+      // const CLICK_MESSAGE = 'Notification clicked'
+      goodNotifier.notify(
+        {
+          title: NOTIFICATION_TITLE,
+          subtitle: 'this is a subtitle',
+          icon: Path.resolve(__dirname, 'static/logo-64x64@2x.png'),
+          message: NOTIFICATION_BODY,
+          actions: ['Merge'],
+        },
+        (error, response, metadata) => {
+          if (metadata?.activationType === 'contentsClicked') {
+            alert('default handler')
+          } else if (metadata?.activationType === 'actionClicked') {
+            alert(`${metadata.activationValue} clicked`)
+          }
+        }
+      )
     }
   }
 

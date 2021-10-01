@@ -45,13 +45,14 @@
     "moment": "^2.24.0",
     "moment-duration-format": "^2.3.2",
     "mri": "^1.1.0",
+    "node-notifier": "^10.0.0",
     "p-limit": "^2.2.0",
     "primer-support": "^4.0.0",
     "prop-types": "^15.7.2",
     "quick-lru": "^3.0.0",
     "react": "^16.8.4",
-    "react-css-transition-replace": "^3.0.3",
     "react-color": "^2.19.3",
+    "react-css-transition-replace": "^3.0.3",
     "react-dom": "^16.8.4",
     "react-transition-group": "^4.4.1",
     "react-virtualized": "^9.20.0",
@@ -68,6 +69,7 @@
     "winston-daily-rotate-file": "^1.4.5"
   },
   "devDependencies": {
+    "@types/node-notifier": "^8.0.1",
     "devtron": "^1.4.0",
     "electron-debug": "^3.1.0",
     "electron-devtools-installer": "^3.1.1",

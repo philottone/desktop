@@ -345,6 +345,21 @@ function copyDependencies() {
     path.resolve(desktopTrampolineDir, desktopTrampolineFile)
   )
 
+  console.log('  Copying terminal-notifier…')
+  const terminalNotifierVendorDir = path.resolve(
+    outRoot,
+    'terminal-notifier.app'
+  )
+  fs.removeSync(terminalNotifierVendorDir)
+  fs.mkdirSync(terminalNotifierVendorDir)
+  fs.copySync(
+    path.resolve(
+      projectRoot,
+      'app/node_modules/node-notifier/vendor/mac.noindex/terminal-notifier.app'
+    ),
+    path.resolve(terminalNotifierVendorDir)
+  )
+
   // Dev builds for macOS require a SSH wrapper to use SSH_ASKPASS
   if (process.platform === 'darwin' && isDevelopmentBuild) {
     console.log('  Copying ssh-wrapper')
