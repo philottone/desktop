@@ -4,10 +4,18 @@ import {
   RepositoryWithGitHubRepository,
 } from '../../models/repository'
 import { remote } from 'electron'
+import { PullRequest, PullRequestRef } from '../../models/pull-request'
+
+type OnChecksFailedCallback = (
+  repository: RepositoryWithGitHubRepository,
+  pullRequest: PullRequest
+  // TODO: workflow run too?
+) => void
 
 export class NotificationsStore {
   private fakePollingTimeoutId: number | null = null
   private repository: RepositoryWithGitHubRepository | null = null
+  private onChecksFailedCallback: OnChecksFailedCallback | null = null
 
   private unsubscribe() {
     if (this.fakePollingTimeoutId !== null) {
@@ -42,6 +50,7 @@ export class NotificationsStore {
       return
     }
 
+    const repository = this.repository
     const workflowName = 'CI'
     const prName = 'Bump Git to 2.32.0 and Git LFS to 2.13.3'
     const commitSha = 'b0e713a'
@@ -50,22 +59,36 @@ export class NotificationsStore {
     const notification = new remote.Notification({
       title: NOTIFICATION_TITLE,
       body: NOTIFICATION_BODY,
-      actions: [
-        {
-          type: 'button',
-          text: 'Merge',
-        },
-      ],
     })
+
+    const pullRequestRef = new PullRequestRef(
+      'bump-git',
+      'fabada',
+      repository.gitHubRepository
+    )
+    const baseRef = new PullRequestRef(
+      'development',
+      'fabada',
+      repository.gitHubRepository
+    )
+    const pullRequest = new PullRequest(
+      new Date(),
+      prName,
+      13013,
+      pullRequestRef,
+      baseRef,
+      'sergiou87',
+      false
+    )
 
     notification.on('click', () => {
-      alert('default handler')
-    })
-
-    notification.on('action', () => {
-      alert(`Merge clicked`)
+      this.onChecksFailedCallback?.(repository, pullRequest)
     })
 
     notification.show()
+  }
+
+  public onChecksFailedNotification(callback: OnChecksFailedCallback) {
+    this.onChecksFailedCallback = callback
   }
 }

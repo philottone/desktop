@@ -75,6 +75,7 @@ export enum PopupType {
   InvalidatedToken,
   AddSSHHost,
   SSHKeyPassphrase,
+  PullRequestChecksFailed,
 }
 
 export type Popup =
@@ -308,4 +309,9 @@ export type Popup =
         passphrase: string | undefined,
         storePassphrase: boolean
       ) => void
+    }
+  | {
+      type: PopupType.PullRequestChecksFailed
+      repository: RepositoryWithGitHubRepository
+      pullRequest: PullRequest
     }

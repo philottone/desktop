@@ -535,6 +535,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }, InitialRepositoryIndicatorTimeout)
 
     API.onTokenInvalidated(this.onTokenInvalidated)
+
+    this.notificationsStore.onChecksFailedNotification(
+      this.onChecksFailedNotification
+    )
   }
 
   private onTokenInvalidated = (endpoint: string) => {
@@ -6732,6 +6736,26 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
 
     this.emitUpdate()
+  }
+
+  private onChecksFailedNotification = (
+    repository: RepositoryWithGitHubRepository,
+    pullRequest: PullRequest
+  ) => {
+    if (this.selectedRepository === null) {
+      // TODO: switch to repository. If the repository is in the affected branch -> show popover, otherwise show dialog
+      return
+    }
+
+    if (this.selectedRepository.hash !== repository.hash) {
+      return
+    }
+
+    this._showPopup({
+      type: PopupType.PullRequestChecksFailed,
+      pullRequest,
+      repository,
+    })
   }
 }
 

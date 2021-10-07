@@ -142,6 +142,7 @@ import { SSHKeyPassphrase } from './ssh/ssh-key-passphrase'
 import { getMultiCommitOperationChooseBranchStep } from '../lib/multi-commit-operation'
 import { ConfirmForcePush } from './rebase/confirm-force-push'
 import { setAlmostImmediate } from '../lib/set-almost-immediate'
+import { PullRequestChecksFailed } from './notifications/pull-request-checks-failed'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
@@ -2044,6 +2045,19 @@ export class App extends React.Component<IAppProps, IAppState> {
             key="ssh-key-passphrase"
             keyPath={popup.keyPath}
             onSubmit={popup.onSubmit}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
+      }
+      case PopupType.PullRequestChecksFailed: {
+        return (
+          <PullRequestChecksFailed
+            key="pull-request-checks-failed"
+            dispatcher={this.props.dispatcher}
+            shouldChangeRepository={true}
+            repository={popup.repository}
+            pullRequest={popup.pullRequest}
+            onSubmit={onPopupDismissedFn}
             onDismissed={onPopupDismissedFn}
           />
         )
