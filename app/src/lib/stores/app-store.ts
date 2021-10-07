@@ -284,6 +284,7 @@ import { reorder } from '../git/reorder'
 import { DragAndDropIntroType } from '../../ui/history/drag-and-drop-intro'
 import { UseWindowsOpenSSHKey } from '../ssh/ssh'
 import { isConflictsFlow } from '../multi-commit-operation'
+import { NotificationsStore } from './notifications-store'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 
@@ -472,7 +473,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
     private readonly repositoriesStore: RepositoriesStore,
     private readonly pullRequestCoordinator: PullRequestCoordinator,
     private readonly repositoryStateCache: RepositoryStateCache,
-    private readonly apiRepositoriesStore: ApiRepositoriesStore
+    private readonly apiRepositoriesStore: ApiRepositoriesStore,
+    private readonly notificationsStore: NotificationsStore
   ) {
     super()
 
@@ -1492,6 +1494,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
     // Understanding how many users actually contribute to repos with branch protections gives us
     // insight into who our users are and what kinds of work they do
     this.updateBranchProtectionsFromAPI(repository)
+
+    this.notificationsStore.selectRepository(repository)
 
     return this._selectRepositoryRefreshTasks(
       refreshedRepository,

@@ -1148,31 +1148,8 @@ export class App extends React.Component<IAppProps, IAppState> {
       const url = getGitHubHtmlUrl(repository)
 
       if (url) {
-        //this.props.dispatcher.openInBrowser(url)
+        this.props.dispatcher.openInBrowser(url)
       }
-
-      const NOTIFICATION_TITLE = '@tidy-dev approved your pull request'
-      const NOTIFICATION_BODY = 'LGTM! :shipit:'
-      const notification = new remote.Notification({
-        title: NOTIFICATION_TITLE,
-        body: NOTIFICATION_BODY,
-        actions: [
-          {
-            type: 'button',
-            text: 'Merge',
-          },
-        ],
-      })
-
-      notification.on('click', () => {
-        alert('default handler')
-      })
-
-      notification.on('action', () => {
-        alert(`Merge clicked`)
-      })
-
-      notification.show()
     }
   }
 
