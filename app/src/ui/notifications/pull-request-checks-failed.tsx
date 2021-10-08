@@ -48,6 +48,7 @@ export class PullRequestChecksFailed extends React.Component<
           <div>
             <CICheckRunList
               prNumber={this.props.pullRequest.pullRequestNumber}
+              branchName={this.props.pullRequest.head.ref}
               dispatcher={this.props.dispatcher}
               repository={this.props.repository.gitHubRepository}
             />

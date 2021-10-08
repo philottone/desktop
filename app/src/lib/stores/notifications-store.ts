@@ -52,8 +52,8 @@ export class NotificationsStore {
 
     const repository = this.repository
     const workflowName = 'CI'
-    const prName = 'Bump Git to 2.32.0 and Git LFS to 2.13.3'
-    const commitSha = 'b0e713a'
+    const prName = 'IGNORE: testing check runs Failing unit test'
+    const commitSha = 'ef0edb8'
     const NOTIFICATION_TITLE = 'PR run failed'
     const NOTIFICATION_BODY = `${workflowName} - ${prName} (${commitSha})\nSome jobs were not successful.`
     const notification = new remote.Notification({
@@ -62,7 +62,7 @@ export class NotificationsStore {
     })
 
     const pullRequestRef = new PullRequestRef(
-      'bump-git',
+      'Unit-Test---This-is-broken-on-purpose',
       'fabada',
       repository.gitHubRepository
     )
