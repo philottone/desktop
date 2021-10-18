@@ -314,4 +314,5 @@ export type Popup =
       type: PopupType.PullRequestChecksFailed
       repository: RepositoryWithGitHubRepository
       pullRequest: PullRequest
+      needsSelectRepository: boolean
     }

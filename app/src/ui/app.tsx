@@ -194,6 +194,8 @@ export class App extends React.Component<IAppProps, IAppState> {
 
   private repositoryViewRef = React.createRef<RepositoryView>()
 
+  private branchDropdownRef = React.createRef<BranchDropdown>()
+
   /**
    * Gets a value indicating whether or not we're currently showing a
    * modal dialog such as the preferences, or an error dialog.
@@ -2516,6 +2518,7 @@ export class App extends React.Component<IAppProps, IAppState> {
 
     return (
       <BranchDropdown
+        ref={this.branchDropdownRef}
         dispatcher={this.props.dispatcher}
         isOpen={isOpen}
         onDropDownStateChanged={this.onBranchDropdownStateChanged}
@@ -2528,6 +2531,7 @@ export class App extends React.Component<IAppProps, IAppState> {
         shouldNudge={
           this.state.currentOnboardingTutorialStep === TutorialStep.CreateBranch
         }
+        showCIStatusPopover={this.state.showCIStatusPopover}
       />
     )
   }

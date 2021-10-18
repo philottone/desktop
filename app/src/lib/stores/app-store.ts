@@ -462,6 +462,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   private currentDragElement: DragElement | null = null
   private lastThankYou: ILastThankYou | undefined
+  private showCIStatusPopover: boolean = false
 
   public constructor(
     private readonly gitHubUserStore: GitHubUserStore,
@@ -859,6 +860,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       dragAndDropIntroTypesShown: this.dragAndDropIntroTypesShown,
       currentDragElement: this.currentDragElement,
       lastThankYou: this.lastThankYou,
+      showCIStatusPopover: this.showCIStatusPopover,
     }
   }
 
@@ -6738,24 +6740,56 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.emitUpdate()
   }
 
-  private onChecksFailedNotification = (
+  public _setShowCIStatusPopover(showCIStatusPopover: boolean) {
+    if (this.showCIStatusPopover !== showCIStatusPopover) {
+      this.showCIStatusPopover = showCIStatusPopover
+      this.emitUpdate()
+    }
+  }
+
+  public _toggleCIStatusPopover() {
+    this.showCIStatusPopover = !this.showCIStatusPopover
+    this.emitUpdate()
+  }
+
+  private onChecksFailedNotification = async (
     repository: RepositoryWithGitHubRepository,
     pullRequest: PullRequest
   ) => {
-    if (this.selectedRepository === null) {
-      // TODO: switch to repository. If the repository is in the affected branch -> show popover, otherwise show dialog
-      return
+    const selectedRepository =
+      this.selectedRepository ?? (await this._selectRepository(repository))
+
+    if (
+      selectedRepository === null ||
+      selectedRepository.hash !== repository.hash
+    ) {
+      return this._showPopup({
+        type: PopupType.PullRequestChecksFailed,
+        pullRequest,
+        repository,
+        needsSelectRepository: true,
+      })
     }
 
-    if (this.selectedRepository.hash !== repository.hash) {
-      return
-    }
+    const state = this.repositoryStateCache.get(repository)
 
-    this._showPopup({
-      type: PopupType.PullRequestChecksFailed,
-      pullRequest,
-      repository,
-    })
+    const { branchesState } = state
+    const { tip } = branchesState
+    const currentBranch = tip.kind === TipState.Valid ? tip.branch : null
+
+    if (currentBranch !== null && currentBranch.name === pullRequest.head.ref) {
+      // If it's the same branch, just show the existing CI check run popover
+      this._setShowCIStatusPopover(true)
+    } else {
+      // If there is no current branch or it's different than the PR branch,
+      // show the checks failed dialog.
+      this._showPopup({
+        type: PopupType.PullRequestChecksFailed,
+        pullRequest,
+        repository,
+        needsSelectRepository: false,
+      })
+    }
   }
 }
 
