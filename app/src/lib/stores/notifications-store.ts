@@ -3,7 +3,7 @@ import {
   isRepositoryWithGitHubRepository,
   RepositoryWithGitHubRepository,
 } from '../../models/repository'
-// import { remote } from 'electron'
+import { remote } from 'electron'
 import { PullRequest, PullRequestRef } from '../../models/pull-request'
 
 type OnChecksFailedCallback = (
@@ -56,36 +56,16 @@ export class NotificationsStore {
       return
     }
 
-    // const workflowName = 'CI'
+    const workflowName = 'CI'
     const prName = 'IGNORE: testing check runs Failing unit test'
-    // const commitSha = 'ef0edb8'
-    // const NOTIFICATION_TITLE = 'PR run failed'
-    // const NOTIFICATION_BODY = `${workflowName} - ${prName} (${commitSha})\nSome jobs were not successful.`
-    // const notification = new remote.Notification({
-    //   title: NOTIFICATION_TITLE,
-    //   body: NOTIFICATION_BODY,
-    // })
-    /*
-    const pullRequestRef = new PullRequestRef(
-      'Unit-Test---This-is-broken-on-purpose',
-      'fabada',
-      repository.gitHubRepository
-    )
-    const baseRef = new PullRequestRef(
-      'development',
-      'fabada',
-      repository.gitHubRepository
-    )
-    const pullRequest = new PullRequest(
-      new Date(),
-      prName,
-      13013,
-      pullRequestRef,
-      baseRef,
-      'sergiou87',
-      false
-    )
-*/
+    const commitSha = 'ef0edb8'
+    const NOTIFICATION_TITLE = 'PR run failed'
+    const NOTIFICATION_BODY = `${workflowName} - ${prName} (${commitSha})\nSome jobs were not successful.`
+    const notification = new remote.Notification({
+      title: NOTIFICATION_TITLE,
+      body: NOTIFICATION_BODY,
+    })
+
     const pullRequestRef = new PullRequestRef(
       'Unit-Test---This-is-broken-on-purpose',
       'fabada',
@@ -106,11 +86,11 @@ export class NotificationsStore {
       false
     )
 
-    //notification.on('click', () => {
-    this.onChecksFailedCallback?.(repository, pullRequest)
-    // })
+    notification.on('click', () => {
+      this.onChecksFailedCallback?.(repository, pullRequest)
+    })
 
-    //notification.show()
+    notification.show()
   }
 
   public onChecksFailedNotification(callback: OnChecksFailedCallback) {

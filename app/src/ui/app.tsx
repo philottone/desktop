@@ -2056,7 +2056,7 @@ export class App extends React.Component<IAppProps, IAppState> {
           <PullRequestChecksFailed
             key="pull-request-checks-failed"
             dispatcher={this.props.dispatcher}
-            shouldChangeRepository={true}
+            shouldChangeRepository={popup.needsSelectRepository}
             repository={popup.repository}
             pullRequest={popup.pullRequest}
             onSubmit={onPopupDismissedFn}

@@ -23,12 +23,14 @@ export class PullRequestChecksFailed extends React.Component<
   IPullRequestChecksFailedProps
 > {
   public render() {
-    let okButtonTitle = __DARWIN__ ? 'Switch to Branch' : 'Switch to branch'
+    let okButtonTitle = __DARWIN__
+      ? 'Switch to Pull Request'
+      : 'Switch to pull request'
 
     if (this.props.shouldChangeRepository) {
       okButtonTitle = __DARWIN__
-        ? 'Switch to Repository and Branch'
-        : 'Switch to repository and branch'
+        ? 'Switch to Repository and Pull Request'
+        : 'Switch to repository and pull request'
     }
 
     return (
@@ -54,9 +56,18 @@ export class PullRequestChecksFailed extends React.Component<
             onCancelButtonClick={this.props.onDismissed}
             cancelButtonText="Dismiss"
             okButtonText={okButtonTitle}
+            onOkButtonClick={this.onSubmit}
           />
         </DialogFooter>
       </Dialog>
     )
+  }
+
+  private onSubmit = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    const { dispatcher, repository, pullRequest } = this.props
+    await dispatcher.selectRepository(repository)
+    await dispatcher.checkoutPullRequest(repository, pullRequest)
+    this.props.onDismissed()
   }
 }
