@@ -16,12 +16,22 @@ interface IPullRequestChecksFailedProps {
   readonly onDismissed: () => void
 }
 
+interface IPullRequestChecksFailedState {
+  readonly loading: boolean
+}
+
 /**
  * Dialog prompts the user the passphrase of an SSH key.
  */
 export class PullRequestChecksFailed extends React.Component<
-  IPullRequestChecksFailedProps
+  IPullRequestChecksFailedProps,
+  IPullRequestChecksFailedState
 > {
+  public constructor(props: IPullRequestChecksFailedProps) {
+    super(props)
+    this.state = { loading: false }
+  }
+
   public render() {
     let okButtonTitle = __DARWIN__
       ? 'Switch to Pull Request'
@@ -41,6 +51,7 @@ export class PullRequestChecksFailed extends React.Component<
         dismissable={false}
         onSubmit={this.props.onSubmit}
         onDismissed={this.props.onDismissed}
+        loading={this.state.loading}
       >
         <DialogContent>
           <Row>
@@ -66,8 +77,12 @@ export class PullRequestChecksFailed extends React.Component<
   private onSubmit = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault()
     const { dispatcher, repository, pullRequest } = this.props
+
+    this.setState({ loading: true })
     await dispatcher.selectRepository(repository)
     await dispatcher.checkoutPullRequest(repository, pullRequest)
+    this.setState({ loading: false })
+
     this.props.onDismissed()
   }
 }
