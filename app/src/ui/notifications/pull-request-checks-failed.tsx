@@ -75,6 +75,7 @@ export class PullRequestChecksFailed extends React.Component<
 
     const dialogTitle = (
       <span className="custom-title">
+        <Octicon symbol={OcticonSymbol.gitPullRequest} />
         <span className="pr-title">{this.props.pullRequest.title}</span>{' '}
         <span className="pr-number">
           #{this.props.pullRequest.pullRequestNumber}
