@@ -15,6 +15,7 @@ import {
 } from '../ci-checks/ci-checks'
 import { AccountsStore } from './accounts-store'
 import { getCommit } from '../git'
+import { PullRequestCoordinator } from './pull-request-coordinator'
 
 type OnChecksFailedCallback = (
   repository: RepositoryWithGitHubRepository,
@@ -29,9 +30,14 @@ export class NotificationsStore {
   private repository: RepositoryWithGitHubRepository | null = null
   private onChecksFailedCallback: OnChecksFailedCallback | null = null
   private accountsStore: AccountsStore
+  private pullRequestCoordinator: PullRequestCoordinator
 
-  public constructor(accountsStore: AccountsStore) {
+  public constructor(
+    accountsStore: AccountsStore,
+    pullRequestCoordinator: PullRequestCoordinator
+  ) {
     this.accountsStore = accountsStore
+    this.pullRequestCoordinator = pullRequestCoordinator
   }
 
   private unsubscribe() {
@@ -45,11 +51,35 @@ export class NotificationsStore {
 
     this.repository = repository
 
-    this.fakePollingTimeoutId = window.setTimeout(() => {
-      this.postChecksFailedNotification()
+    this.pullRequestCoordinator.onPullRequestsChanged(
+      (repository, pullRequest) => {
+        if (
+          this.repository === null ||
+          repository.hash !== this.repository.hash
+        ) {
+          return
+        }
+      }
+    )
+
+    this.fakePollingTimeoutId = window.setTimeout(async () => {
+      if (this.repository === null) {
+        return
+      }
+
+      const accounts = await this.accountsStore.getAll()
+
+      for (const account of accounts) {
+        this.pullRequestCoordinator.refreshPullRequests(
+          this.repository,
+          account
+        )
+      }
+
+      //this.postChecksFailedNotification()
       // this.subscribe(repository)
       // eslint-disable-next-line insecure-random
-    }, 1000) //Math.random() * 5000 + 5000)
+    }, 30000) //Math.random() * 5000 + 5000)
   }
 
   public selectRepository(repository: Repository) {
