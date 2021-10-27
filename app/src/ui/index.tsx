@@ -258,7 +258,10 @@ const apiRepositoriesStore = new ApiRepositoriesStore(accountsStore)
 
 const commitStatusStore = new CommitStatusStore(accountsStore)
 const aheadBehindStore = new AheadBehindStore()
-const notificationsStore = new NotificationsStore(accountsStore)
+const notificationsStore = new NotificationsStore(
+  accountsStore,
+  pullRequestCoordinator
+)
 
 const appStore = new AppStore(
   gitHubUserStore,
