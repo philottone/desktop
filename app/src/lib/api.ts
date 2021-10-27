@@ -473,6 +473,7 @@ export interface IAPIBranch {
 interface IAPIPullRequestRef {
   readonly ref: string
   readonly sha: string
+  readonly user: IAPIIdentity | null
 
   /**
    * The repository in which this ref lives. It could be null if the repository
@@ -946,6 +947,65 @@ export class API {
         suppressErrors: false,
       })
       return prs.filter(pr => Date.parse(pr.updated_at) >= sinceTime)
+    } catch (e) {
+      log.warn(`failed fetching updated PRs for repository ${owner}/${name}`, e)
+      throw e
+    }
+  }
+
+  public async fetchUpdatedOpenPullRequestsWithHeadFromUser(
+    owner: string,
+    name: string,
+    since: Date,
+    headUser: string,
+    // 320 is chosen because with a ramp-up page size starting with
+    // a page size of 10 we'll reach 320 in exactly 7 pages. See
+    // getNextPagePathWithIncreasingPageSize
+    maxResults = 320
+  ) {
+    const sinceTime = since.getTime()
+    const url = urlWithQueryString(`repos/${owner}/${name}/pulls`, {
+      state: 'open',
+      sort: 'updated',
+      direction: 'desc',
+    })
+
+    const prFilter = (pr: IAPIPullRequest) =>
+      Date.parse(pr.updated_at) >= sinceTime && pr.head.user?.login === headUser
+
+    try {
+      const prs = await this.fetchAll<IAPIPullRequest>(url, {
+        // We use a page size smaller than our default 100 here because we
+        // expect that the majority use case will return much less than
+        // 100 results. Given that as long as _any_ PR has changed we'll
+        // get the full list back (PRs doesn't support ?since=) we want
+        // to keep this number fairly conservative in order to not use
+        // up bandwidth needlessly while balancing it such that we don't
+        // have to use a lot of requests to update our database. We then
+        // ramp up the page size (see getNextPagePathWithIncreasingPageSize)
+        // if it turns out there's a lot of updated PRs.
+        perPage: 10,
+        getNextPagePath: getNextPagePathWithIncreasingPageSize,
+        continue(results) {
+          const filteredResults = results.filter(prFilter)
+          if (filteredResults.length >= maxResults) {
+            return false
+          }
+
+          // Given that we sort the results in descending order by their
+          // updated_at field we can safely say that if the last item
+          // is modified after our sinceTime then haven't reached the
+          // end of updated PRs.
+          const last = filteredResults[filteredResults.length - 1]
+          return last !== undefined && Date.parse(last.updated_at) > sinceTime
+        },
+        // We can't ignore errors here as that might mean that we haven't
+        // retrieved enough pages to fully capture the changes since the
+        // last time we updated. Ignoring errors here would mean that we'd
+        // store an incorrect lastUpdated field in the database.
+        suppressErrors: false,
+      })
+      return prs.filter(prFilter)
     } catch (e) {
       log.warn(`failed fetching updated PRs for repository ${owner}/${name}`, e)
       throw e

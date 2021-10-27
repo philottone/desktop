@@ -5,17 +5,23 @@ import {
 } from '../../models/repository'
 import { remote } from 'electron'
 import { PullRequest, PullRequestRef } from '../../models/pull-request'
-import { API } from '../api'
+import {
+  API,
+  IAPIPullRequest,
+  APICheckConclusion,
+  APICheckStatus,
+} from '../api'
 import {
   createCombinedCheckFromChecks,
   getLatestCheckRunsByName,
   apiStatusToRefCheck,
   apiCheckRunToRefCheck,
   IRefCheck,
+  isSuccess,
 } from '../ci-checks/ci-checks'
 import { AccountsStore } from './accounts-store'
 import { getCommit } from '../git'
-import { PullRequestCoordinator } from './pull-request-coordinator'
+import { GitHubRepository } from '../../models/github-repository'
 
 type OnChecksFailedCallback = (
   repository: RepositoryWithGitHubRepository,
@@ -25,19 +31,24 @@ type OnChecksFailedCallback = (
   checkRuns: ReadonlyArray<IRefCheck>
 ) => void
 
+type LastCheckedPullRequestEntry = {
+  readonly headSha: string
+  readonly checkStatus: APICheckStatus
+  readonly checkConclusion: APICheckConclusion | null
+}
+
+type LastCheckedPullRequests = Map<number, LastCheckedPullRequestEntry>
+
 export class NotificationsStore {
   private fakePollingTimeoutId: number | null = null
   private repository: RepositoryWithGitHubRepository | null = null
   private onChecksFailedCallback: OnChecksFailedCallback | null = null
   private accountsStore: AccountsStore
-  private pullRequestCoordinator: PullRequestCoordinator
+  private lastCheckDate: Date | null = null
+  private lastCheckedPullRequests: LastCheckedPullRequests = new Map()
 
-  public constructor(
-    accountsStore: AccountsStore,
-    pullRequestCoordinator: PullRequestCoordinator
-  ) {
+  public constructor(accountsStore: AccountsStore) {
     this.accountsStore = accountsStore
-    this.pullRequestCoordinator = pullRequestCoordinator
   }
 
   private unsubscribe() {
@@ -51,35 +62,111 @@ export class NotificationsStore {
 
     this.repository = repository
 
-    this.pullRequestCoordinator.onPullRequestsChanged(
-      (repository, pullRequest) => {
-        if (
-          this.repository === null ||
-          repository.hash !== this.repository.hash
-        ) {
-          return
-        }
-      }
-    )
-
     this.fakePollingTimeoutId = window.setTimeout(async () => {
       if (this.repository === null) {
         return
       }
 
-      const accounts = await this.accountsStore.getAll()
+      const { gitHubRepository } = repository
+      const { name, owner } = gitHubRepository
 
-      for (const account of accounts) {
-        this.pullRequestCoordinator.refreshPullRequests(
-          this.repository,
-          account
-        )
+      const account = await this.getAccountForRepository(gitHubRepository)
+      const api = await this.getAPIForRepository(
+        this.repository.gitHubRepository
+      )
+
+      if (account === null || api === null) {
+        return
       }
+
+      const pullRequests = await api.fetchUpdatedOpenPullRequestsWithHeadFromUser(
+        owner.login,
+        name,
+        this.lastCheckDate ?? new Date(0),
+        account.login,
+        3
+      )
+
+      debugger
+
+      this.lastCheckDate = new Date()
+
+      this.checkPullRequests(pullRequests)
 
       //this.postChecksFailedNotification()
       // this.subscribe(repository)
       // eslint-disable-next-line insecure-random
-    }, 30000) //Math.random() * 5000 + 5000)
+    }, 1000) //Math.random() * 5000 + 5000)
+  }
+
+  public async checkPullRequests(pullRequests: ReadonlyArray<IAPIPullRequest>) {
+    const repository = this.repository
+    if (repository === null) {
+      return
+    }
+
+    const checkedPullRequests: LastCheckedPullRequests = new Map()
+
+    for (const pr of pullRequests) {
+      const { number: prNumber, head } = pr
+      const previousCheckedPR = this.lastCheckedPullRequests.get(prNumber)
+
+      // Only check PRs if:
+      // - We haven't checked them yet
+      // - Last time we checked, the PR check status wasn't completed
+      // - If it was completed, check it again if the head changed
+      if (
+        previousCheckedPR !== undefined &&
+        previousCheckedPR.checkStatus === APICheckStatus.Completed &&
+        previousCheckedPR.headSha === head.sha
+      ) {
+        continue
+      }
+
+      const checks = await this.getChecksForRef(repository, pr.head.ref)
+      if (checks === null) {
+        continue
+      }
+
+      const allPRChecksCompleted = checks.checks.every(
+        check => check.status === APICheckStatus.Completed
+      )
+
+      if (!allPRChecksCompleted) {
+        checkedPullRequests.set(prNumber, {
+          headSha: head.sha,
+          checkStatus: APICheckStatus.InProgress,
+          checkConclusion: null,
+        })
+        continue
+      }
+
+      let prCheckConclusion = APICheckConclusion.Success
+
+      for (const check of checks.checks) {
+        if (check.conclusion === null || isSuccess(check)) {
+          continue
+        }
+
+        this.postChecksFailedNotification(
+          pr,
+          checks.checks,
+          checks.sha,
+          checks.commitMessage
+        )
+
+        prCheckConclusion = APICheckConclusion.Failure
+        break
+      }
+
+      checkedPullRequests.set(prNumber, {
+        headSha: head.sha,
+        checkStatus: APICheckStatus.Completed,
+        checkConclusion: prCheckConclusion,
+      })
+    }
+
+    this.lastCheckedPullRequests = checkedPullRequests
   }
 
   public selectRepository(repository: Repository) {
@@ -92,7 +179,30 @@ export class NotificationsStore {
     this.subscribe(repository)
   }
 
-  private async postChecksFailedNotification() {
+  private async getAccountForRepository(repository: GitHubRepository) {
+    const { endpoint } = repository
+
+    // TODO: make this in a cleaner way
+    const accounts = await this.accountsStore.getAll()
+    return accounts.find(a => a.endpoint === endpoint) ?? null
+  }
+
+  private async getAPIForRepository(repository: GitHubRepository) {
+    const account = await this.getAccountForRepository(repository)
+
+    if (account === null) {
+      return null
+    }
+
+    return API.fromAccount(account)
+  }
+
+  private postChecksFailedNotification(
+    apiPullRequest: IAPIPullRequest,
+    checks: ReadonlyArray<IRefCheck>,
+    sha: string,
+    commitMessage: string
+  ) {
     if (this.repository === null) {
       return
     }
@@ -113,39 +223,51 @@ export class NotificationsStore {
       body: NOTIFICATION_BODY,
     })
 
-    const pullRequestRef = new PullRequestRef(
-      'Unit-Test---This-is-broken-on-purpose',
-      'fabada',
+    const headRef = new PullRequestRef(
+      apiPullRequest.head.ref,
+      apiPullRequest.head.sha,
       repository.gitHubRepository
     )
     const baseRef = new PullRequestRef(
-      'development',
-      'fabada',
+      apiPullRequest.base.ref,
+      apiPullRequest.base.sha,
       repository.gitHubRepository
     )
     const pullRequest = new PullRequest(
-      new Date(),
-      prName,
-      13013,
-      pullRequestRef,
+      new Date(apiPullRequest.created_at),
+      apiPullRequest.title,
+      apiPullRequest.number,
+      headRef,
       baseRef,
-      'sergiou87',
-      false
+      apiPullRequest.user.login,
+      apiPullRequest.draft ?? false
     )
 
+    notification.on('click', () => {
+      this.onChecksFailedCallback?.(
+        repository,
+        pullRequest,
+        commitMessage,
+        sha,
+        checks
+      )
+    })
+
+    notification.show()
+  }
+
+  private async getChecksForRef(
+    repository: RepositoryWithGitHubRepository,
+    ref: string
+  ) {
     const { gitHubRepository } = repository
-    const { owner, name, endpoint } = gitHubRepository
+    const { owner, name } = gitHubRepository
 
-    // TODO: make this in a cleaner way
-    const accounts = await this.accountsStore.getAll()
-    const account = accounts.find(a => a.endpoint === endpoint)
+    const api = await this.getAPIForRepository(gitHubRepository)
 
-    if (account === undefined) {
-      return
+    if (api === null) {
+      return null
     }
-
-    const ref = pullRequest.head.ref
-    const api = API.fromAccount(account)
 
     const [statuses, checkRuns] = await Promise.all([
       api.fetchCombinedRefStatus(owner.login, name, ref),
@@ -155,7 +277,7 @@ export class NotificationsStore {
     const checks = new Array<IRefCheck>()
 
     if (statuses === null || checkRuns === null) {
-      return
+      return null
     }
 
     let commitMessage: string
@@ -169,7 +291,7 @@ export class NotificationsStore {
       const apiCommit = await api.fetchCommit(owner.login, name, statuses.sha)
 
       if (apiCommit === null) {
-        return
+        return null
       }
 
       commitMessage = apiCommit.commit.message
@@ -189,20 +311,14 @@ export class NotificationsStore {
     const check = createCombinedCheckFromChecks(checks)
 
     if (check === null || check.checks.length === 0) {
-      return
+      return null
     }
 
-    notification.on('click', () => {
-      this.onChecksFailedCallback?.(
-        repository,
-        pullRequest,
-        commitMessage,
-        statuses.sha,
-        check.checks
-      )
-    })
-
-    notification.show()
+    return {
+      checks: check.checks,
+      commitMessage,
+      sha: statuses.sha,
+    }
   }
 
   public onChecksFailedNotification(callback: OnChecksFailedCallback) {
