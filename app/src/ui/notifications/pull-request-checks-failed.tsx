@@ -2,7 +2,6 @@ import * as React from 'react'
 import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { Row } from '../lib/row'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
-import { RepositoryWithGitHubRepository } from '../../models/repository'
 import { PullRequest } from '../../models/pull-request'
 import { Dispatcher } from '../dispatcher'
 import { CICheckRunList } from '../check-runs/ci-check-run-list'
@@ -17,6 +16,7 @@ import { API } from '../../lib/api'
 import { Octicon, syncClockwise } from '../octicons'
 import * as OcticonSymbol from '../octicons/octicons.generated'
 import { Button } from '../lib/button'
+import { RepositoryWithGitHubRepository } from '../../models/repository'
 
 interface IPullRequestChecksFailedProps {
   readonly dispatcher: Dispatcher
@@ -200,8 +200,8 @@ export class PullRequestChecksFailed extends React.Component<
   }
 
   private async loadCheckRunLogs() {
-    const { gitHubRepository } = this.props.repository
-    const { pullRequest } = this.props
+    const { pullRequest, repository } = this.props
+    const { gitHubRepository } = repository
 
     const account = this.props.accounts.find(
       a => a.endpoint === gitHubRepository.endpoint
