@@ -258,10 +258,6 @@ export class NotificationsStore {
 
     const repository = this.repository
 
-    if (repository.alias !== 'desktop-2') {
-      return
-    }
-
     const numberOfFailedChecks = checks.filter(
       check => check.conclusion === APICheckConclusion.Failure
     ).length
