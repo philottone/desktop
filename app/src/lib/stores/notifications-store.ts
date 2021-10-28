@@ -4,7 +4,7 @@ import {
   RepositoryWithGitHubRepository,
 } from '../../models/repository'
 import { remote } from 'electron'
-import { PullRequest } from '../../models/pull-request'
+import { PullRequest, PullRequestRef } from '../../models/pull-request'
 import { API, APICheckConclusion, APICheckStatus } from '../api'
 import {
   createCombinedCheckFromChecks,
@@ -20,7 +20,7 @@ import { GitHubRepository } from '../../models/github-repository'
 import { PullRequestCoordinator } from './pull-request-coordinator'
 import { Commit } from '../../models/commit'
 
-const ChecksFailedPollingInterval = 10 * 1000 // 10 seconds
+const ChecksFailedPollingInterval = 10 * 60 * 1000 // 10 minutes
 
 function isSuperset<T>(set: ReadonlySet<T>, subset: ReadonlySet<T>): boolean {
   for (const elem of subset) {
@@ -79,7 +79,50 @@ export class NotificationsStore {
     this.repository = repository
 
     this.fakePollingTimeoutId = window.setTimeout(async () => {
-      if (this.repository?.hash !== repository.hash) {
+      if (
+        this.repository === null ||
+        this.repository.hash !== repository.hash
+      ) {
+        return
+      }
+
+      if (1 !== NaN) {
+        const pullRequestRef = new PullRequestRef(
+          'Unit-Test---This-is-broken-on-purpose',
+          'fabada',
+          repository.gitHubRepository
+        )
+        const baseRef = new PullRequestRef(
+          'development',
+          'fabada',
+          repository.gitHubRepository
+        )
+        const pullRequest = new PullRequest(
+          new Date(),
+          'Some random PR',
+          13013,
+          pullRequestRef,
+          baseRef,
+          'sergiou87',
+          false
+        )
+
+        const checks = await this.getChecksForRef(
+          this.repository,
+          pullRequest.head.ref
+        )
+
+        if (checks === null) {
+          return
+        }
+
+        this.postChecksFailedNotification(
+          pullRequest,
+          checks.checks,
+          checks.sha,
+          checks.commitMessage
+        )
+
         return
       }
 
@@ -96,7 +139,7 @@ export class NotificationsStore {
       )
       await this.checkPullRequests(pullRequests)
       this.subscribe(repository)
-    }, ChecksFailedPollingInterval)
+    }, 1000) //ChecksFailedPollingInterval)
   }
 
   public async checkPullRequests(pullRequests: ReadonlyArray<PullRequest>) {
