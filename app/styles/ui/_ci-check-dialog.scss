@@ -7,6 +7,15 @@
     .pr-number {
       color: var(--text-secondary-color);
     }
+
+    .octicon {
+      vertical-align: bottom; // For some reason, `bottom` places the text in the middle
+      color: var(--pr-open-icon-color);
+
+      &.draft {
+        color: var(--pr-draft-icon-color);
+      }
+    }
   }
 
   .ci-check-run-dialog-container {

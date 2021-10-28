@@ -73,13 +73,16 @@ export class PullRequestChecksFailed extends React.Component<
         : 'Switch to repository and pull request'
     }
 
+    const { pullRequest } = this.props
+
     const dialogTitle = (
       <span className="custom-title">
-        <Octicon symbol={OcticonSymbol.gitPullRequest} />
-        <span className="pr-title">{this.props.pullRequest.title}</span>{' '}
-        <span className="pr-number">
-          #{this.props.pullRequest.pullRequestNumber}
-        </span>{' '}
+        <Octicon
+          className={pullRequest.draft ? 'draft' : undefined}
+          symbol={OcticonSymbol.gitPullRequest}
+        />
+        <span className="pr-title">{pullRequest.title}</span>{' '}
+        <span className="pr-number">#{pullRequest.pullRequestNumber}</span>{' '}
       </span>
     )
 
