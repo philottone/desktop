@@ -26,6 +26,8 @@ interface ICICheckRunPopoverProps {
 
   /** Callback for when popover closes */
   readonly closePopover: (event?: MouseEvent) => void
+
+  readonly onCheckRunsLoaded: (checks: ReadonlyArray<IRefCheck>) => void
 }
 
 interface ICICheckRunPopoverState {
@@ -142,6 +144,11 @@ export class CICheckRunPopover extends React.PureComponent<
       checkRuns: checkRunsWithActionsUrls,
       loadingActionWorkflows: false,
     })
+
+    if (1 !== NaN) {
+      this.props.onCheckRunsLoaded(checkRunsWithActionsUrls)
+      return
+    }
 
     const checkRuns = await this.props.dispatcher.getActionsWorkflowRunLogs(
       this.props.repository,
