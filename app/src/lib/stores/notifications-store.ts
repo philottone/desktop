@@ -262,9 +262,19 @@ export class NotificationsStore {
       return
     }
 
-    const workflowName = 'CI'
-    const NOTIFICATION_TITLE = 'Pull Request checks run failed'
-    const NOTIFICATION_BODY = `${workflowName} - ${pullRequest.title} (${sha})\nSome jobs were not successful.`
+    const numberOfFailedChecks = checks.filter(
+      check => check.conclusion === APICheckConclusion.Failure
+    ).length
+    const pluralChecks =
+      numberOfFailedChecks === 1 ? 'check was' : 'checks were'
+
+    const NOTIFICATION_TITLE = 'Pull Request checks failed'
+    const NOTIFICATION_BODY = `${pullRequest.title} #${
+      pullRequest.pullRequestNumber
+    } (${sha.slice(
+      0,
+      9
+    )})\n${numberOfFailedChecks} ${pluralChecks} not successful.`
     const notification = new remote.Notification({
       title: NOTIFICATION_TITLE,
       body: NOTIFICATION_BODY,
