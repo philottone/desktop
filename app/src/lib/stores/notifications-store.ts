@@ -20,6 +20,8 @@ import { GitHubRepository } from '../../models/github-repository'
 import { PullRequestCoordinator } from './pull-request-coordinator'
 import { Commit } from '../../models/commit'
 
+const ChecksFailedPollingInterval = 10 * 1000 // 10 seconds
+
 function isSuperset<T>(set: ReadonlySet<T>, subset: ReadonlySet<T>): boolean {
   for (const elem of subset) {
     if (!set.has(elem)) {
@@ -55,6 +57,7 @@ export class NotificationsStore {
   private lastCheckDate: Date | null = null
   private lastCheckedPullRequests: LastCheckedPullRequests = new Map()
   private cachedCommits: Map<string, Commit> = new Map()
+  private skipCommitShas: Set<string> = new Set()
 
   public constructor(
     accountsStore: AccountsStore,
@@ -75,16 +78,6 @@ export class NotificationsStore {
 
     this.repository = repository
 
-    this.pullRequestCoordinator.onPullRequestsChanged(
-      (repository, pullRequests) => {
-        if (this.repository?.hash !== repository.hash) {
-          return
-        }
-
-        this.checkPullRequests(pullRequests)
-      }
-    )
-
     this.fakePollingTimeoutId = window.setTimeout(async () => {
       if (this.repository?.hash !== repository.hash) {
         return
@@ -96,17 +89,21 @@ export class NotificationsStore {
       if (account === null) {
         return
       }
-      this.pullRequestCoordinator.refreshPullRequests(repository, account)
-      //this.postChecksFailedNotification()
+      await this.pullRequestCoordinator.refreshPullRequests(repository, account)
+
+      const pullRequests = await this.pullRequestCoordinator.getAllPullRequests(
+        repository
+      )
+      await this.checkPullRequests(pullRequests)
       this.subscribe(repository)
-      // eslint-disable-next-line insecure-random
-    }, 10000) //Math.random() * 5000 + 5000)
+    }, ChecksFailedPollingInterval)
   }
 
   public async checkPullRequests(pullRequests: ReadonlyArray<PullRequest>) {
     if (
       this.lastCheckDate !== null &&
-      new Date().getTime() > this.lastCheckDate.getTime() + 1000 * 10
+      new Date().getTime() <=
+        this.lastCheckDate.getTime() + ChecksFailedPollingInterval
     ) {
       return
     }
@@ -130,17 +127,7 @@ export class NotificationsStore {
       const { pullRequestNumber: prNumber, head } = pr
       const previousCheckedPR = this.lastCheckedPullRequests.get(prNumber)
 
-      // Only check PRs if:
-      // - We haven't checked them yet
-      // - Last time we checked, the PR check status wasn't completed
-      // - If it was completed, check it again if the head changed
-      if (
-        previousCheckedPR !== undefined &&
-        previousCheckedPR.checkStatus === APICheckStatus.Completed
-        // We shouldn't check if it's the same sha because we can run new CI
-        // checks on the very same commit.
-        // previousCheckedPR.headSha === head.sha
-      ) {
+      if (this.skipCommitShas.has(head.sha)) {
         continue
       }
 
@@ -148,12 +135,14 @@ export class NotificationsStore {
         this.cachedCommits.get(head.sha) ??
         (await getCommit(repository, head.sha))
       if (commit === null) {
+        this.skipCommitShas.add(head.sha)
         continue
       }
 
       this.cachedCommits.set(head.sha, commit)
 
       if (!account.emails.map(e => e.email).includes(commit.author.email)) {
+        this.skipCommitShas.add(head.sha)
         continue
       }
 
@@ -189,6 +178,7 @@ export class NotificationsStore {
       // Only process these checks if they're not the same as the last time
       if (
         previousCheckedPR !== undefined &&
+        previousCheckedPR.checkStatus === APICheckStatus.Completed &&
         isSuperset(previousCheckedPR.completedCheckSuiteIDs, checkSuiteIDs)
       ) {
         checkedPullRequests.set(prNumber, previousCheckedPR)
